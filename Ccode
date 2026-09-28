@@ -1,0 +1,32 @@
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+from genlayer import *
+
+class FlightInsurance(gl.Contract):
+    flight_number: str
+    is_claimed: bool
+
+    def __init__(self, flight_number: str):
+        self.flight_number = flight_number
+        self.is_claimed = False
+
+    @gl.public.view
+    def get_status(self) -> bool:
+        return self.is_claimed
+
+    @gl.public.write
+    def claim_payout(self) -> str:
+        if self.is_claimed:
+            raise Exception("Already claimed")
+
+        # Non-deterministic web/LLM lookup performed by validators
+        web_data = gl.get_webpage(f"https://api.flightstats.com/v1/{self.flight_number}")
+        
+        # Equivalence judgment: validators evaluate the text response
+        prompt = f"Based on this flight data: {web_data}, was the flight delayed by more than 2 hours? Reply YES or NO."
+        result = gl.prompt_llm(prompt)
+
+        if "YES" in result.upper():
+            self.is_claimed = True
+            return "Payout Approved"
+        else:
+            return "Flight was on time or delay was under threshold"
